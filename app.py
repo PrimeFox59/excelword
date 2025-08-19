@@ -24,39 +24,49 @@ def process_docx(uploaded_file, data_map):
         doc_stream = BytesIO(uploaded_file.read())
         doc = Document(doc_stream)
         
-        # Regex untuk menemukan tag dengan prefix dinamis, contoh: [Data:A1], [Obx:B2]
-        # Regex ini akan mengambil seluruh tag, termasuk prefix dan cell
+        # Regex untuk menemukan tag dengan prefix dan cell, contoh: [Data:A1]
         pattern = re.compile(r"\[(.*?:[A-Z]+[0-9]+)\]")
         
+        # Fungsi pembantu untuk memproses teks di dalam sebuah kontainer (paragraph atau cell)
+        def replace_in_container(container):
+            full_text = ""
+            for run in container.runs:
+                full_text += run.text
+            
+            matches = pattern.findall(full_text)
+            
+            if not matches:
+                return
+
+            # Hanya lakukan penggantian jika ada tag yang ditemukan
+            for match in matches:
+                replacement_value = str(data_map.get(match, f"[{match}]"))
+                
+                # Cari dan ganti tag di dalam full_text
+                full_text = full_text.replace(f"[{match}]", replacement_value)
+
+            # Hapus semua teks dari run yang ada
+            for run in container.runs:
+                run.text = ""
+            
+            # Masukkan teks yang sudah diganti ke dalam run pertama
+            if container.runs:
+                container.runs[0].text = full_text
+            else:
+                # Jika tidak ada run, tambahkan run baru
+                container.add_run(full_text)
+                
         # Memproses paragraf
         for p in doc.paragraphs:
-            runs_to_replace = []
-            for run in p.runs:
-                matches = pattern.findall(run.text)
-                if matches:
-                    for match in matches:
-                        runs_to_replace.append((run, match))
-
-            # Lakukan penggantian setelah mengumpulkan semua match
-            for run, match in runs_to_replace:
-                replacement_value = str(data_map.get(match, f"[{match}]"))
-                run.text = run.text.replace(f"[{match}]", replacement_value)
+            replace_in_container(p)
         
         # Memproses tabel
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    runs_to_replace_in_cell = []
+                    # Setiap cell memiliki paragraphs
                     for p in cell.paragraphs:
-                        for run in p.runs:
-                            matches = pattern.findall(run.text)
-                            if matches:
-                                for match in matches:
-                                    runs_to_replace_in_cell.append((run, match))
-
-                    for run, match in runs_to_replace_in_cell:
-                        replacement_value = str(data_map.get(match, f"[{match}]"))
-                        run.text = run.text.replace(f"[{match}]", replacement_value)
+                        replace_in_container(p)
         
         new_doc_stream = BytesIO()
         doc.save(new_doc_stream)
