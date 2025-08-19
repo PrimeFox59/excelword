@@ -74,6 +74,43 @@ st.markdown("Aplikasi ini akan mengganti tag dalam dokumen Word (.docx) dengan d
 # --- Tabs ---
 tab1, tab2 = st.tabs(["Aplikasi", "Panduan Penggunaan"])
 
+default_config_kompleks = """{
+    "RINC SIMULATOR": "RINC SIMULATOR",
+    "RINC CAPAIAN (TOTAL)": "RINC CAPAIAN (TOTAL)",
+    "RINC JT IP": "RINC JT IP",
+    "RINC SIMULATOR IP": "RINC SIMULATOR IP",
+    "LAMP I-A (PROD JT)": "LAMP I-A (PROD JT)",
+    "LAMP I-B ( JT IP)": "LAMP I-B ( JT IP)",
+    "LAMP I-C (GUN.JT)": "LAMP I-C (GUN.JT)",
+    "LAMP I-D (PROD FTD-FMS)": "LAMP I-D (PROD FTD-FMS)",
+    "2-A Daftar Pers": "2-A Daftar Pers",
+    "2-B STRUK JBTN": "2-B STRUK JBTN",
+    "2-C DSP": "2-C DSP",
+    "3-A Kesiapan Pesawat": "3-A Kesiapan Pesawat",
+    "3-B HarPES": "3-B HarPES",
+    "3-C Rinc Har": "3-C Rinc Har",
+    "3-D BMP": "3-D BMP",
+    "BMP Tahunan": "BMP Tahunan",
+    "3-E Sucad": "3-E Sucad",
+    "3-E Ranmor": "3-E Ranmor",
+    "3-F Bliktek": "3-F Bliktek",
+    "3-G Tools": "3-G Tools",
+    "3-H GUN SUCAD": "3-H GUN SUCAD",
+    "4 Alins-Alongins": "4 Alins-Alongins",
+    "5 Inventaris Barang": "5 Inventaris Barang",
+    "LAMP 6 (FASHARIN)": "LAMP 6 (FASHARIN)",
+    "7-A LAMBANGJA": "7-A LAMBANGJA",
+    "7-B Pot Hazard": "7-B Pot Hazard",
+    "7-C Acc-Inc personel": "7-C Acc-Inc personel",
+    "7-D Safety Meeting": "7-D Safety Meeting",
+    "8 Permasalahan": "8 Permasalahan"
+}"""
+default_config_sederhana = """{
+    "Data": "Data",
+    "Obx": "Obx",
+    "Control": "Control"
+}"""
+
 with tab1:
     st.header("Konfigurasi Data Google Sheet")
     st.markdown("Masukkan URL Google Sheet dan konfigurasi sheet dalam format JSON. Setiap entri adalah pasangan dari **'prefix tag'** dan **'nama sheet'**.")
@@ -83,11 +120,23 @@ with tab1:
         "https://docs.google.com/spreadsheets/d/1d89txS35ZrBwk6_gyfOixvWZlvc149pgzhbekOka1uo/edit?usp=sharing"
     )
 
-    sheet_config_input = st.text_area(
-        "Konfigurasi Sheet (JSON)", 
-        '{\n    "Data": "Data",\n    "Obx": "Obx",\n    "Control": "Control"\n}', 
-        height=150
+    sheet_config_choice = st.radio(
+        "Pilih Konfigurasi",
+        ("Sederhana", "Kompleks")
     )
+
+    if sheet_config_choice == "Sederhana":
+        sheet_config_input = st.text_area(
+            "Konfigurasi Sheet (JSON)", 
+            default_config_sederhana, 
+            height=150
+        )
+    else:
+        sheet_config_input = st.text_area(
+            "Konfigurasi Sheet (JSON)", 
+            default_config_kompleks, 
+            height=400
+        )
 
     st.markdown("---")
 
@@ -139,7 +188,7 @@ with tab2:
     st.markdown("Aplikasi ini membantu Anda mengisi data dari Google Sheets ke dalam dokumen Word secara otomatis. Cukup ikuti 3 langkah mudah ini.")
 
     st.subheader("Langkah 1: Siapkan Google Sheets & Dokumen Word")
-    st.markdown("1. **Buka Google Sheet Anda**")
+    st.markdown(f"1. **Buka Google Sheet Anda**")
     st.markdown(f"   - Kunjungi https://docs.google.com/spreadsheets/d/1d89txS35ZrBwk6_gyfOixvWZlvc149pgzhbekOka1uo/edit?usp=sharing untuk melihat contoh data.")
     st.markdown("   - Pastikan **akun layanan** Anda memiliki akses 'Editor' ke Google Sheet ini.")
     st.markdown("2. **Buat Template Word Anda**")
@@ -157,9 +206,11 @@ with tab2:
     st.markdown("2. **Atur Konfigurasi JSON**")
     st.markdown("   - Masukkan URL Google Sheet Anda.")
     st.markdown("   - Pada bagian **'Konfigurasi Sheet'**, masukkan nama sheet yang ingin Anda gunakan dalam format JSON. Setiap pasangan `“prefix”: “nama_sheet”` memberitahu aplikasi sheet mana yang harus diakses untuk prefix tertentu.")
+    st.markdown("Contoh untuk **konfigurasi sederhana**:")
     st.code("{\n  \"Data\": \"Data\",\n  \"Obx\": \"Obx\",\n  \"Control\": \"Control\"\n}")
-    st.markdown("Jika Anda ingin **menambah sheet baru**, cukup tambahkan baris baru ke dalam JSON. Misalnya, untuk sheet 'Finance' dengan tag `[Finance:B1]`, tambahkan:")
-    st.code("{\n  \"Data\": \"Data\",\n  \"Obx\": \"Obx\",\n  \"Control\": \"Control\",\n  \"Finance\": \"Finance\"\n}")
+    st.markdown("Contoh untuk **konfigurasi kompleks**:")
+    st.code("{\n    \"RINC SIMULATOR\": \"RINC SIMULATOR\",\n    \"RINC CAPAIAN (TOTAL)\": \"RINC CAPAIAN (TOTAL)\",\n    \"RINC JT IP\": \"RINC JT IP\",\n    \"RINC SIMULATOR IP\": \"RINC SIMULATOR IP\",\n    \"LAMP I-A (PROD JT)\": \"LAMP I-A (PROD JT)\",\n    \"LAMP I-B ( JT IP)\": \"LAMP I-B ( JT IP)\",\n    \"LAMP I-C (GUN.JT)\": \"LAMP I-C (GUN.JT)\",\n    \"LAMP I-D (PROD FTD-FMS)\": \"LAMP I-D (PROD FTD-FMS)\",\n    \"2-A Daftar Pers\": \"2-A Daftar Pers\",\n    \"2-B STRUK JBTN\": \"2-B STRUK JBTN\",\n    \"2-C DSP\": \"2-C DSP\",\n    \"3-A Kesiapan Pesawat\": \"3-A Kesiapan Pesawat\",\n    \"3-B HarPES\": \"3-B HarPES\",\n    \"3-C Rinc Har\": \"3-C Rinc Har\",\n    \"3-D BMP\": \"3-D BMP\",\n    \"BMP Tahunan\": \"BMP Tahunan\",\n    \"3-E Sucad\": \"3-E Sucad\",\n    \"3-E Ranmor\": \"3-E Ranmor\",\n    \"3-F Bliktek\": \"3-F Bliktek\",\n    \"3-G Tools\": \"3-G Tools\",\n    \"3-H GUN SUCAD\": \"3-H GUN SUCAD\",\n    \"4 Alins-Alongins\": \"4 Alins-Alongins\",\n    \"5 Inventaris Barang\": \"5 Inventaris Barang\",\n    \"LAMP 6 (FASHARIN)\": \"LAMP 6 (FASHARIN)\",\n    \"7-A LAMBANGJA\": \"7-A LAMBANGJA\",\n    \"7-B Pot Hazard\": \"7-B Pot Hazard\",\n    \"7-C Acc-Inc personel\": \"7-C Acc-Inc personel\",\n    \"7-D Safety Meeting\": \"7-D Safety Meeting\",\n    \"8 Permasalahan\": \"8 Permasalahan\"\n}")
+    st.markdown("Jika Anda ingin **menambah sheet baru**, cukup tambahkan baris baru ke dalam JSON.")
     st.markdown("Catatan: Nama sel (`A1`, `B2`, dll.) **tidak perlu** dimasukkan di sini.")
 
     st.markdown("---")
