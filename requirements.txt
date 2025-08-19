@@ -1,3 +1,5 @@
 streamlit
 gspread
-google.oauth2.service_account
+google-auth
+python-docx
+pandas
