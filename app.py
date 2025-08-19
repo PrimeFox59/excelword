@@ -24,10 +24,8 @@ def process_docx(uploaded_file, data_map):
         doc_stream = BytesIO(uploaded_file.read())
         doc = Document(doc_stream)
         
-        # Regex untuk menemukan tag dengan prefix dan cell, contoh: [Data:A1]
         pattern = re.compile(r"\[(.*?:[A-Z]+[0-9]+)\]")
         
-        # Fungsi pembantu untuk memproses teks di dalam sebuah kontainer (paragraph atau cell)
         def replace_in_container(container):
             full_text = ""
             for run in container.runs:
@@ -38,33 +36,24 @@ def process_docx(uploaded_file, data_map):
             if not matches:
                 return
 
-            # Hanya lakukan penggantian jika ada tag yang ditemukan
             for match in matches:
                 replacement_value = str(data_map.get(match, f"[{match}]"))
-                
-                # Cari dan ganti tag di dalam full_text
                 full_text = full_text.replace(f"[{match}]", replacement_value)
 
-            # Hapus semua teks dari run yang ada
             for run in container.runs:
                 run.text = ""
             
-            # Masukkan teks yang sudah diganti ke dalam run pertama
             if container.runs:
                 container.runs[0].text = full_text
             else:
-                # Jika tidak ada run, tambahkan run baru
                 container.add_run(full_text)
                 
-        # Memproses paragraf
         for p in doc.paragraphs:
             replace_in_container(p)
         
-        # Memproses tabel
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    # Setiap cell memiliki paragraphs
                     for p in cell.paragraphs:
                         replace_in_container(p)
         
@@ -81,68 +70,105 @@ def process_docx(uploaded_file, data_map):
 # --- Antarmuka Streamlit ---
 st.title("Aplikasi Otomatisasi Dokumen Word Fleksibel 🚀")
 st.markdown("Aplikasi ini akan mengganti tag dalam dokumen Word (.docx) dengan data dari Google Sheet.")
-st.markdown("---")
 
-st.header("Konfigurasi Data Google Sheet")
-st.markdown("Masukkan URL Google Sheet dan konfigurasi sheet dalam format JSON. Setiap entri adalah pasangan dari **'prefix tag'** dan **'nama sheet'**.")
+# --- Tabs ---
+tab1, tab2 = st.tabs(["Aplikasi", "Panduan Penggunaan"])
 
-sheet_url_input = st.text_input(
-    "URL Google Sheet", 
-    "https://docs.google.com/spreadsheets/d/1d89txS35ZrBwk6_gyfOixvWZlvc149pgzhbekOka1uo/edit?usp=sharing"
-)
+with tab1:
+    st.header("Konfigurasi Data Google Sheet")
+    st.markdown("Masukkan URL Google Sheet dan konfigurasi sheet dalam format JSON. Setiap entri adalah pasangan dari **'prefix tag'** dan **'nama sheet'**.")
 
-sheet_config_input = st.text_area(
-    "Konfigurasi Sheet (JSON)", 
-    '{\n    "Data": "Data",\n    "Obx": "Obx",\n    "Control": "Control"\n}', 
-    height=150
-)
+    sheet_url_input = st.text_input(
+        "URL Google Sheet", 
+        "https://docs.google.com/spreadsheets/d/1d89txS35ZrBwk6_gyfOixvWZlvc149pgzhbekOka1uo/edit?usp=sharing"
+    )
 
-uploaded_file = st.file_uploader("Pilih file .docx", type="docx")
+    sheet_config_input = st.text_area(
+        "Konfigurasi Sheet (JSON)", 
+        '{\n    "Data": "Data",\n    "Obx": "Obx",\n    "Control": "Control"\n}', 
+        height=150
+    )
 
-if st.button("Generate Dokumen"):
-    if not uploaded_file:
-        st.warning("Silakan unggah file .docx terlebih dahulu.")
-    else:
-        with st.spinner("Sedang memproses..."):
-            try:
-                # 1. Parsing konfigurasi sheet dari input pengguna
-                sheet_config = json.loads(sheet_config_input)
-                
-                # 2. Buat dictionary data gabungan dari semua sheet yang dikonfigurasi
-                all_data_dict = {}
-                for prefix, sheet_name in sheet_config.items():
-                    try:
-                        worksheet = client.open_by_url(sheet_url_input).worksheet(sheet_name)
-                        all_values = worksheet.get_all_values()
-                        
-                        for r_idx, row in enumerate(all_values):
-                            for c_idx, cell_value in enumerate(row):
-                                col_letter = chr(ord('A') + c_idx)
-                                cell_ref = f"{col_letter}{r_idx + 1}"
-                                # Key dictionary adalah kombinasi dari prefix dan cell, contoh: "Data:A1"
-                                combined_key = f"{prefix}:{cell_ref}"
-                                all_data_dict[combined_key] = cell_value
-                    except gspread.WorksheetNotFound:
-                        st.warning(f"Sheet dengan nama '{sheet_name}' tidak ditemukan. Melewati sheet ini.")
-                        
-                if not all_data_dict:
-                    st.error("Tidak ada data yang berhasil diambil dari Google Sheets. Mohon periksa URL dan nama sheet Anda.")
-                else:
-                    # 3. Proses dokumen Word dengan dictionary data gabungan
-                    processed_doc_stream = process_docx(uploaded_file, all_data_dict)
-                    
-                    if processed_doc_stream:
-                        file_name = uploaded_file.name.replace(".docx", "_generated.docx")
-                        
-                        st.success("Dokumen berhasil dibuat!")
-                        st.download_button(
-                            label="Unduh Dokumen Hasil",
-                            data=processed_doc_stream,
-                            file_name=file_name,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
+    st.markdown("---")
 
-            except json.JSONDecodeError:
-                st.error("Konfigurasi Sheet tidak valid. Mohon gunakan format JSON yang benar.")
-            except Exception as e:
-                st.error(f"Terjadi kesalahan: {e}")
+    st.header("Unggah dan Buat Dokumen")
+    uploaded_file = st.file_uploader("Pilih file .docx", type="docx")
+
+    if st.button("Generate Dokumen"):
+        if not uploaded_file:
+            st.warning("Silakan unggah file .docx terlebih dahulu.")
+        else:
+            with st.spinner("Sedang memproses..."):
+                try:
+                    sheet_config = json.loads(sheet_config_input)
+                    all_data_dict = {}
+                    for prefix, sheet_name in sheet_config.items():
+                        try:
+                            worksheet = client.open_by_url(sheet_url_input).worksheet(sheet_name)
+                            all_values = worksheet.get_all_values()
+                            for r_idx, row in enumerate(all_values):
+                                for c_idx, cell_value in enumerate(row):
+                                    col_letter = chr(ord('A') + c_idx)
+                                    cell_ref = f"{col_letter}{r_idx + 1}"
+                                    combined_key = f"{prefix}:{cell_ref}"
+                                    all_data_dict[combined_key] = cell_value
+                        except gspread.WorksheetNotFound:
+                            st.warning(f"Sheet dengan nama '{sheet_name}' tidak ditemukan. Melewati sheet ini.")
+                            
+                    if not all_data_dict:
+                        st.error("Tidak ada data yang berhasil diambil dari Google Sheets. Mohon periksa URL dan nama sheet Anda.")
+                    else:
+                        processed_doc_stream = process_docx(uploaded_file, all_data_dict)
+                        if processed_doc_stream:
+                            file_name = uploaded_file.name.replace(".docx", "_generated.docx")
+                            st.success("Dokumen berhasil dibuat!")
+                            st.download_button(
+                                label="Unduh Dokumen Hasil",
+                                data=processed_doc_stream,
+                                file_name=file_name,
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            )
+
+                except json.JSONDecodeError:
+                    st.error("Konfigurasi Sheet tidak valid. Mohon gunakan format JSON yang benar.")
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan: {e}")
+
+with tab2:
+    st.header("🚀 Panduan Singkat: Mengisi Dokumen Word Otomatis")
+    st.markdown("Aplikasi ini membantu Anda mengisi data dari Google Sheets ke dalam dokumen Word secara otomatis. Cukup ikuti 3 langkah mudah ini.")
+
+    st.subheader("Langkah 1: Siapkan Google Sheets & Dokumen Word")
+    st.markdown("1. **Buka Google Sheet Anda**")
+    st.markdown(f"   - Kunjungi https://docs.google.com/spreadsheets/d/1d89txS35ZrBwk6_gyfOixvWZlvc149pgzhbekOka1uo/edit?usp=sharing untuk melihat contoh data.")
+    st.markdown("   - Pastikan **akun layanan** Anda memiliki akses 'Editor' ke Google Sheet ini.")
+    st.markdown("2. **Buat Template Word Anda**")
+    st.markdown("   - Tulis tag di dokumen Word Anda dengan format **`[prefix:cell]`**.")
+    st.markdown("   - **`prefix`**: Nama yang Anda tentukan di aplikasi untuk mewakili sebuah sheet.")
+    st.markdown("   - **`cell`**: Nama sel yang ingin Anda ambil datanya (contoh: `A1`, `B2`).")
+    st.markdown("**Contoh Tag**: `[Data:A1]`, `[Obx:A2]`, `[Control:A3]`")
+
+    st.markdown("---")
+
+    st.subheader("Langkah 2: Konfigurasi di Aplikasi Web")
+    st.markdown("1. **Buka Aplikasi**")
+    st.markdown("   - Kunjungi **https://exceltowordz.streamlit.app/**.")
+    st.markdown("   - Pilih tab **'Aplikasi'**.")
+    st.markdown("2. **Atur Konfigurasi JSON**")
+    st.markdown("   - Masukkan URL Google Sheet Anda.")
+    st.markdown("   - Pada bagian **'Konfigurasi Sheet'**, masukkan nama sheet yang ingin Anda gunakan dalam format JSON. Setiap pasangan `“prefix”: “nama_sheet”` memberitahu aplikasi sheet mana yang harus diakses untuk prefix tertentu.")
+    st.code("{\n  \"Data\": \"Data\",\n  \"Obx\": \"Obx\",\n  \"Control\": \"Control\"\n}")
+    st.markdown("Jika Anda ingin **menambah sheet baru**, cukup tambahkan baris baru ke dalam JSON. Misalnya, untuk sheet 'Finance' dengan tag `[Finance:B1]`, tambahkan:")
+    st.code("{\n  \"Data\": \"Data\",\n  \"Obx\": \"Obx\",\n  \"Control\": \"Control\",\n  \"Finance\": \"Finance\"\n}")
+    st.markdown("Catatan: Nama sel (`A1`, `B2`, dll.) **tidak perlu** dimasukkan di sini.")
+
+    st.markdown("---")
+
+    st.subheader("Langkah 3: Unggah & Unduh Dokumen")
+    st.markdown("1. **Unggah Dokumen**")
+    st.markdown("   - Klik tombol **'Browse files'** dan pilih file Word (.docx) template Anda.")
+    st.markdown("2. **Generate**")
+    st.markdown("   - Klik tombol **'Generate Dokumen'**. Aplikasi akan memproses file Anda. Tunggu sebentar hingga proses selesai.")
+    st.markdown("3. **Unduh**")
+    st.markdown("   - Setelah proses berhasil, tombol **'Unduh Dokumen Hasil'** akan muncul.")
+    st.markdown("   - Klik tombol tersebut untuk mengunduh dokumen Word yang sudah terisi penuh dengan data dari Google Sheets Anda.")
